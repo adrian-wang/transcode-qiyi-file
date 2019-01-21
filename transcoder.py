@@ -123,11 +123,11 @@ def validate_head(f):
 
 
 def main():
-    filename = 'tester.qsv'
-    if len(sys.argv) > 1:
-        filename = sys.argv[1]
-    # seek_next(open(filename, 'rb'), 7728, 4941647)
-    trans(filename)
+    for arg in sys.argv:
+        if arg == sys.argv[0]:
+            pass
+        else:
+            trans(arg)
 
 
 main()
