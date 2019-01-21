@@ -28,9 +28,9 @@ def trans(filename):
         print('Invalid file ' + filename + ': unrecognized format!')
         return 1
     print('Start to transcode ' + filename + ', file size: ' + str(size))
-    ret = do_trans(f, size, handle_name(filename))
-    assert ret == 0
-    return do_merge()
+    simple_name = handle_name(filename)
+    num = do_trans(f, size, simple_name)
+    return do_merge(simple_name, num)
 
 
 def handle_name(filename):
@@ -42,21 +42,33 @@ def handle_name(filename):
     return simple_name
 
 
-def do_merge():
-    return
+def do_merge(name, num):
+    if num == 1:
+        final_name = name + flv_ext
+        os.rename(temp_file_name(name, 1), final_name)
+        print('Output: ' + final_name)
+        return 0
+    else:
+        print('Need further merge ' + num + ' files currently!')
+        # TODO
+        pass
+        return 0
+
+
+def seg_name(idx):
+    return '{0:03d}'.format(idx)
+
+
+def temp_file_name(outfile, idx):
+    return outfile + seg_name(idx) + flv_ext
 
 
 def do_trans(f, size, out_file):
     pos = seek_next(f, head_len, size)
-    seg_cnt = 0
-
-    def seg_name():
-        return '{0:03d}'.format(seg_cnt + 1)
-
-    out = open(out_file + seg_name() + flv_ext, 'wb')
+    seg_cnt = 1
+    out = open(temp_file_name(out_file, seg_cnt), 'wb')
     out.write(flv_header)
     while pos != 0:
-        # TODO seg_cnt fixed length
         seg_len = seg_size(f, pos)
         f.seek(pos)
         # print('Segment ' + seg_name() + ' length ' + str(seg_len))
@@ -68,15 +80,15 @@ def do_trans(f, size, out_file):
             break
         elif mark == '0':
             out.close()
+            # for next temp file
+            seg_cnt += 1
             print("writing another temp file")
-            out = open(out_file + seg_name() + flv_ext, 'wb')
+            out = open(temp_file_name(out_file, seg_cnt), 'wb')
             out.write(flv_header)
             pos = seek_next(f, pos, size)
-        # for next seg
-        seg_cnt += 1
     out.close()
     f.close()
-    return 0
+    return seg_cnt
 
 
 def seg_size(f, offset):
@@ -90,9 +102,9 @@ def seek_next(f, offset, size):
     while offset + par_head_len < size:
         f.seek(offset)
         par_head = f.read(par_head_len)
-        if not par_head[0] == 9 and not par_head[0] == chr(9): # TODO python2 compatible
+        if not par_head[0] == 9:
             offset += 1
-        elif par_head[1:4] == 0x0:
+        elif par_head[1:4] == 0:
             offset += 4
         elif not par_head[4:11] == b'\x00\x00\x00\x00\x00\x00\x00':
             offset += 1
@@ -111,7 +123,7 @@ def validate_head(f):
 
 
 def main():
-    filename = 'tester-long.qsv'
+    filename = 'tester.qsv'
     if len(sys.argv) > 1:
         filename = sys.argv[1]
     # seek_next(open(filename, 'rb'), 7728, 4941647)
